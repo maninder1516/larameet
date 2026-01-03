@@ -7,6 +7,10 @@ use Illuminate\Http\Request;
 use App\Models\Employee;
 use App\DTOs\EmployeeDTO;
 use App\Services\Employee\EmployeeService;
+use App\Http\Requests\Employee\StoreEmployeeRequest;
+use App\Http\Requests\Employee\UpdateEmployeeRequest;
+use Illuminate\Support\Facades\Log;
+use Exception;
 
 
 class EmployeeController extends Controller
@@ -20,33 +24,51 @@ class EmployeeController extends Controller
      */
     public function index()
     {
-        return response()->json(
-            $this->employeeService->list()
-        );
+        try {
+            return response()->json(
+                $this->employeeService->list()
+            );
+        } catch (Exception $e) {
+            Log::error('Failed to list employees', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Failed to retrieve employees',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StoreEmployeeRequest $request)
     {
-        $validated = $request->validate([
-            'name'   => 'required|string',
-            'age'    => 'required|integer|min:18|max:65',
-            'job'    => 'required|string',
-            'salary' => 'required|numeric|min:0',
-        ]);
+        try {
+            $validated = $request->validated();
+            
+            $employee = $this->employeeService->create(
+                new EmployeeDTO(
+                    $validated['name'],
+                    $validated['age'],
+                    $validated['job'],
+                    (float) $validated['salary']
+                )
+            );
 
-        $employee = $this->employeeService->create(
-            new EmployeeDTO(
-                $validated['name'],
-                $validated['age'],
-                $validated['job'],
-                (float) $validated['salary']
-            )
-        );
-
-        return response()->json($employee, 201);
+            return response()->json($employee, 201);
+        } catch (Exception $e) {
+            Log::error('Failed to create employee', [
+                'data' => $request->all(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Failed to create employee',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -54,34 +76,54 @@ class EmployeeController extends Controller
      */
     public function show(Employee $employee)
     {
-        return response()->json(
-            $this->employeeService->get($employee->id)
-        );
+        try {
+            return response()->json(
+                $this->employeeService->get($employee->id)
+            );
+        } catch (Exception $e) {
+            Log::error('Failed to show employee', [
+                'employee_id' => $employee->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Failed to retrieve employee',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Employee $employee)
+    public function update(UpdateEmployeeRequest $request, Employee $employee)
     {
-        $validated = $request->validate([
-            'name'   => 'required|string',
-            'age'    => 'required|integer|min:18|max:65',
-            'job'    => 'required|string',
-            'salary' => 'required|numeric|min:0',
-        ]);
+        try {
+            $validated = $request->validated();
 
-        $employee = $this->employeeService->update(
-            $employee,
-            new EmployeeDTO(
-                $validated['name'],
-                $validated['age'],
-                $validated['job'],
-                (float) $validated['salary']
-            )
-        );
+            $employee = $this->employeeService->update(
+                $employee,
+                new EmployeeDTO(
+                    $validated['name'],
+                    $validated['age'],
+                    $validated['job'],
+                    (float) $validated['salary']
+                )
+            );
 
-        return response()->json($employee);
+            return response()->json($employee);
+        } catch (Exception $e) {
+            Log::error('Failed to update employee', [
+                'employee_id' => $employee->id,
+                'data' => $request->all(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Failed to update employee',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -89,8 +131,20 @@ class EmployeeController extends Controller
      */
     public function destroy(Employee $employee)
     {
-        $this->employeeService->delete($employee);
+        try {
+            $this->employeeService->delete($employee);
 
-        return response()->json(null, 204);
+            return response()->json(null, 204);
+        } catch (Exception $e) {
+            Log::error('Failed to delete employee', [
+                'employee_id' => $employee->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Failed to delete employee',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
